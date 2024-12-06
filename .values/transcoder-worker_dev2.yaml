@@ -1,0 +1,7 @@
+﻿dotnet_environment: Staging
+autoscaling:
+  enabled: true
+  minReplicas: 4
+  maxReplicas: 18
+  externalMetricName: queue_messages_stored_count
+  externalMetricSelector: dev2-chunks-ymq

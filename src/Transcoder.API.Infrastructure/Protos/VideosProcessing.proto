@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package Transcoder.API.Infrastructure;
+
+option csharp_namespace = "Transcoder.API.Infrastructure.gRPC";
+
+service VideosProcessing {
+  rpc StartVideoProcessing (StartVideoProcessingRequest) returns (StartVideoProcessingResponse);
+  rpc GetVideo (GetVideoRequest) returns (GetVideoResponse);
+}
+
+message StartVideoProcessingRequest {
+  string video_id = 1;
+  string file_url = 2;
+  string playlist = 3;
+}
+
+message StartVideoProcessingResponse {
+  string video_id = 1;
+  string format = 2;
+  int32 duration = 3;
+  string codec = 4;
+  VideoStatus status = 5;
+}
+
+message GetVideoRequest {
+  string video_id = 1;
+}
+
+message GetVideoResponse {
+  string video_id = 1;
+  string format = 2;
+  int32 duration = 3;
+  string codec = 4;
+  VideoStatus status = 5;
+  int32 progress = 6;
+}
+
+enum VideoStatus
+{
+  VIDEO_STATUS_UNSPECIFIED = 0;
+  VIDEO_STATUS_ADDED = 1;
+  VIDEO_STATUS_VERIFIED = 2;
+  VIDEO_STATUS_CHOPPED = 4;
+  VIDEO_STATUS_PROCESSING = 3;
+  VIDEO_STATUS_PROCESSED = 9;
+  VIDEO_STATUS_ENCODING = 5;
+  VIDEO_STATUS_GLUING = 6;
+  VIDEO_STATUS_DONE = 7;
+  VIDEO_STATUS_REJECTED = 8;
+}
+

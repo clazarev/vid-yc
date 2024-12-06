@@ -1,0 +1,5 @@
+﻿dotnet_environment: Production
+
+processing:
+  useSingleVideoSize: true # disable multiple profiles
+  useSdBaseVideoSize: false # generate minimal video size for the draft

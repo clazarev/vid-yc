@@ -1,0 +1,44 @@
+{{- if .Values.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "transcoder-worker.fullname" . }}
+  labels:
+    {{- include "transcoder-worker.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "transcoder-worker.fullname" . }}
+  minReplicas: {{ .Values.autoscaling.minReplicas | default 1 }}
+  maxReplicas: {{ .Values.autoscaling.maxReplicas | default 15 }}
+  metrics:
+    {{- if .Values.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.autoscaling.externalMetricName }}
+    - type: External
+      external:
+        metric:
+          name: {{ .Values.autoscaling.externalMetricName }}
+          selector:
+            matchLabels:
+              queue: {{ .Values.autoscaling.externalMetricSelector }}
+        target:
+          type: AverageValue
+          averageValue: {{ .Values.autoscaling.externalMetricMultiplier | default 3 }}  # Scale based on metric value divided by 3
+    {{- end }}
+{{- end }}

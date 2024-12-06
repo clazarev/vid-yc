@@ -1,0 +1,6 @@
+apiVersion: v2
+name: transcoder-chunk-saver
+description: chunk-saver service that listens to transcoded video chunks queue and glues the pieces
+type: application
+version: 0.1.0
+appVersion: "1.16.0"

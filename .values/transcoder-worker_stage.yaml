@@ -1,0 +1,7 @@
+﻿dotnet_environment: Production
+autoscaling:
+  enabled: false
+  minReplicas: 4
+  maxReplicas: 20
+  externalMetricName: queue_messages_stored_count # before use must set up prometheus && prometheus adapter.
+  externalMetricSelector: nt-chunks-mq

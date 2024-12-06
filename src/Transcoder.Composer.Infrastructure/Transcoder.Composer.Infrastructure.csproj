@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>latestmajor</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="MongoDB.EntityFrameworkCore" Version="8.2.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Transcoder.Composer.Application\Transcoder.Composer.Application.csproj" />
+      <ProjectReference Include="..\Transcoder.Composer.Domain\Transcoder.Composer.Domain.csproj" />
+    </ItemGroup>
+
+</Project>

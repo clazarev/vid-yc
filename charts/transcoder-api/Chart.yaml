@@ -1,0 +1,6 @@
+apiVersion: v2
+name: transcoder-api
+description: transcoder-api gRPC service that is a conductor for the transcoding process
+type: application
+version: 0.1.0
+appVersion: "1.16.0"

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: transcoder-chunker
+description: worker service starting transcoding process, extracting audio and slicing whole video file to 1 minute video chunks
+
+type: application
+
+version: 0.1.0
+
+appVersion: "1.16.0"

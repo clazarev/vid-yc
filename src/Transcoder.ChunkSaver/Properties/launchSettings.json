@@ -1,0 +1,15 @@
+﻿{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+
+    "profiles": {
+        "Transcoder.ChunkSaver": {
+            "commandName": "Project",
+            "dotnetRunMessages": true,
+            "environmentVariables": {
+                "DOTNET_ENVIRONMENT": "Development",
+                "AWS_PROFILE": "transcoder"
+            }
+        }
+    }
+}
+

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: transcoder-worker
+description: a worker service transcoding a 1 minute video chunk
+
+type: application
+
+version: 0.1.0
+
+appVersion: "1.16.0"
