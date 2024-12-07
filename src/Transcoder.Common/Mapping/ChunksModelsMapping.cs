@@ -8,6 +8,6 @@ public class ChunksModelsMapping : Profile
 {
     public ChunksModelsMapping()
     {
-        CreateMap<ProcessedChunkMessage, ProcessedChunk>();
+        _ = CreateMap<ProcessedChunkMessage, ProcessedChunk>();
     }
 }

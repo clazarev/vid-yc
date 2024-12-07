@@ -7,8 +7,8 @@ public class RetryExecutor(ILogger<RetryExecutor> logger, RetryStrategy retryStr
     public bool Retry(Action logic)
     {
         int retries = 0;
-        int maxRetries = retryStrategy.getMaxRetries();
-        TimeSpan interval = retryStrategy.getTimeInterval();
+        int maxRetries = retryStrategy.MaxRetries;
+        TimeSpan interval = retryStrategy.TimeInterval;
 
         while (true)
         {
@@ -18,9 +18,13 @@ public class RetryExecutor(ILogger<RetryExecutor> logger, RetryStrategy retryStr
                 logic();
                 return true;
             }
+#pragma warning disable CA1031
             catch (Exception ex)
+#pragma warning restore CA1031
             {
+#pragma warning disable CA1848
                 logger.LogWarning(ex, "Retry {Retry} executing logic", retries);
+#pragma warning restore CA1848
 
                 if (retries == maxRetries)
                 {

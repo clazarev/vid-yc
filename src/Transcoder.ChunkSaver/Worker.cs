@@ -14,7 +14,7 @@ using SerilogTimings.Extensions;
 
 namespace Transcoder.ChunkSaver;
 
-public class Worker(
+internal sealed class Worker(
     IHostApplicationLifetime applicationLifetime,
     Serilog.ILogger logger,
     IMapper mapper,
@@ -31,7 +31,7 @@ public class Worker(
     {
         var request = new ReceiveMessageRequest
         {
-            QueueUrl = _processedQueueOptions.Url,
+            QueueUrl = _processedQueueOptions.Url.ToString(),
             MaxNumberOfMessages = _processedQueueOptions.MaxNumberOfMessages,
             WaitTimeSeconds = _processedQueueOptions.WaitTimeSeconds,
             VisibilityTimeout = _processedQueueOptions.VisibilityTimeoutSeconds
@@ -64,12 +64,10 @@ public class Worker(
     {
         foreach (var sqsMessage in messages)
         {
-            //TODO: использовать видео ID для группировки
             var message = JsonSerializer.Deserialize<ProcessedChunkMessage>(sqsMessage.Body)!;
 
             using var _ = LogContext.PushProperty("VideoId", message.VideoId);
 
-            // TODO: добавить проверку, чтобы не сохранить повторяющийся чанк
             await chunksRepository.AddAsync(mapper.Map<ProcessedChunk>(message)!, stoppingToken);
 
             var processedChunksCount = await chunksRepository.GetTotalAsync(message.VideoId, message.Height, stoppingToken);
@@ -83,11 +81,10 @@ public class Worker(
             // cancelling the process and marking the video as failed
             if (isCancellationRequested)
             {
-                //TODO: keep the status of taskId and ignore all subsequent chunks/final composing activity
                 _logger.Warning("Received cancellation request message on chunk {@Chunk}. Cancelling chunk-saver task...", message);
                 await statusSender.SendStatus(message.VideoId, VideoStatus.Rejected, sqsClient, stoppingToken);
 
-                await sqsClient.DeleteMessageAsync(_processedQueueOptions.Url, sqsMessage.ReceiptHandle, stoppingToken);
+                await sqsClient.DeleteMessageAsync(_processedQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, stoppingToken);
                 continue;
             }
 
@@ -96,13 +93,12 @@ public class Worker(
                 _logger.Information("{ChunkNumber} processed out of {Total}",
                     processedChunksCount, message.Total);
 
-                await sqsClient.DeleteMessageAsync(_processedQueueOptions.Url, sqsMessage.ReceiptHandle, stoppingToken);
+                await sqsClient.DeleteMessageAsync(_processedQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, stoppingToken);
                 continue;
             }
 
             await statusSender.SendStatus(message.VideoId, VideoStatus.Processed, sqsClient, stoppingToken, message.Height, resolutionProgress);
 
-            //количество совпало
             _logger.Information("All chunks for {Height}:{Progress} are ready, sending to stream queue...", message.Height, resolutionProgress);
 
             var streamRequest = new SendMessageRequest
@@ -113,13 +109,13 @@ public class Worker(
                     Playlist = message.Playlist,
                     Height = message.Height
                 }),
-                QueueUrl = _streamQueueOptions.Url,
+                QueueUrl = _streamQueueOptions.Url.ToString(),
                 MessageGroupId = message.VideoId.ToString()
             };
 
             await sqsClient.SendMessageAsync(streamRequest, stoppingToken);
 
-            await sqsClient.DeleteMessageAsync(_processedQueueOptions.Url, sqsMessage.ReceiptHandle, stoppingToken);
+            await sqsClient.DeleteMessageAsync(_processedQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, stoppingToken);
         }
     }
 }

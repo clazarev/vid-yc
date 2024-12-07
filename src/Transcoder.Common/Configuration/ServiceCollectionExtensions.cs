@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 // ReSharper disable once CheckNamespace
 namespace Microsoft.Extensions.DependencyInjection;
 
-public static class Extensions
+public static class ServiceCollectionExtensions
 {
     public static IServiceCollection ConfigureMessageQueues(this IServiceCollection services, IConfiguration config)
     {
@@ -13,7 +13,7 @@ public static class Extensions
         services.Configure<QueueOptions>(QueueOptions.ChunkQueue, config.GetSection($"YandexCloud:{QueueOptions.ChunkQueue}"));
         services.Configure<QueueOptions>(QueueOptions.StreamQueue, config.GetSection($"YandexCloud:{QueueOptions.StreamQueue}"));
         services.Configure<QueueOptions>(QueueOptions.ProcessedChunksQueue, config.GetSection($"YandexCloud:{QueueOptions.ProcessedChunksQueue}"));
-        
+
         return services;
     }
 

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Amazon.SQS.Model;
 using Amazon.SQS;
 using System.Text.Json;
@@ -23,31 +24,26 @@ public class StatusSender(
                 Height = height,
                 ResolutionProgress = resolutionProgress
             }),
-            QueueUrl = _processingStatusQueueOptions.Url,
+            QueueUrl = _processingStatusQueueOptions.Url.ToString(),
         };
         await sqsClient.SendMessageAsync(sendRequest, stoppingToken);
     }
 
-    public async Task SendResolutionBatchStatus(Guid videoId, VideoStatus status, List<Resolution> resolutions, IAmazonSQS sqsClient, CancellationToken stoppingToken)
+    public async Task SendResolutionBatchStatus(Guid videoId, VideoStatus status, ReadOnlyCollection<Resolution> resolutions, IAmazonSQS sqsClient, CancellationToken stoppingToken)
     {
-        List<SendMessageBatchRequestEntry> batch = [];
-        foreach (var resolution in resolutions)
+        var batch = resolutions.Select(res => new SendMessageBatchRequestEntry
         {
-            var sendRequest = new SendMessageBatchRequestEntry
+            Id = res.Height.ToString(),
+            MessageBody = JsonSerializer.Serialize(new ProcessingStatusMessage
             {
-                Id = resolution.Height.ToString(),
-                MessageBody = JsonSerializer.Serialize(new ProcessingStatusMessage
-                {
-                    VideoId = videoId,
-                    Status = status,
-                    Files = 0,
-                    Height = resolution.Height,
-                    ResolutionProgress = 0
-                }),
-            };
-            batch.Add(sendRequest);
-        }
+                VideoId = videoId,
+                Status = status,
+                Files = 0,
+                Height = res.Height,
+                ResolutionProgress = 0
+            }),
+        }).ToList();
 
-        await sqsClient.SendMessageBatchAsync(_processingStatusQueueOptions.Url, batch, stoppingToken);
+        await sqsClient.SendMessageBatchAsync(_processingStatusQueueOptions.Url.ToString(), batch, stoppingToken);
     }
 }

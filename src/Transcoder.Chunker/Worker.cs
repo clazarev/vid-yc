@@ -49,7 +49,7 @@ public class Worker(
     {
         var request = new ReceiveMessageRequest
         {
-            QueueUrl = _videoQueueOptions.Url,
+            QueueUrl = _videoQueueOptions.Url.ToString(),
             MaxNumberOfMessages = 1,
             WaitTimeSeconds = _videoQueueOptions.WaitTimeSeconds,
             VisibilityTimeout = _videoQueueOptions.VisibilityTimeoutSeconds
@@ -83,7 +83,7 @@ public class Worker(
                     var videoToProcess = JsonSerializer.Deserialize<VideoMessage>(sqsMessage.Body)!;
 
                     videoId = videoToProcess.VideoId;
-                    var fileUrl = new Uri(videoToProcess.FileUrl!);
+                    var fileUrl = new Uri(videoToProcess.FileUrl.ToString());
                     var workingDir = Path.Combine(storageOptions.Value.Path, videoId.ToString(), videoId.ToString()); //лишний videoId для копирования папки
 
                     Directory.CreateDirectory(workingDir);
@@ -252,7 +252,7 @@ public class Worker(
                                         }))
                                     .NotifyOnProgress(_ =>
                                     {
-                                        var totalSecondsElapsed = visibilityTimeoutTimer.Elapsed.TotalSeconds;
+                                        var totalSecondsElapsed = (int)visibilityTimeoutTimer.Elapsed.TotalSeconds;
 
                                         if (totalSecondsElapsed + 20 > msgVisibilityCurrent
                                             && totalSecondsElapsed % 10 == 0)
@@ -262,7 +262,7 @@ public class Worker(
 
                                             _logger.Information("Elapsed {Elapsed}, increasing visibility timeout for chunking...",
                                                 totalSecondsElapsed);
-                                            sqsClient.ChangeMessageVisibilityAsync(_videoQueueOptions.Url, sqsMessage.ReceiptHandle, msgVisibilityCurrent,
+                                            sqsClient.ChangeMessageVisibilityAsync(_videoQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, msgVisibilityCurrent,
                                                 stoppingToken);
                                         }
                                     })
@@ -303,7 +303,7 @@ public class Worker(
                             Path.Combine(storageOptions.Value.Path, videoId.ToString()),
                             (sender, args) =>
                             {
-                                var totalSecondsElapsed = visibilityTimeoutTimer.Elapsed.TotalSeconds;
+                                var totalSecondsElapsed = (int)visibilityTimeoutTimer.Elapsed.TotalSeconds;
 
                                 if (totalSecondsElapsed + 20 > msgVisibilityCurrent
                                     && totalSecondsElapsed % 10 == 0)
@@ -313,7 +313,7 @@ public class Worker(
 
                                     _logger.Information("Elapsed {Elapsed}, increasing visibility timeout for upload...",
                                         totalSecondsElapsed);
-                                    sqsClient.ChangeMessageVisibilityAsync(_videoQueueOptions.Url, sqsMessage.ReceiptHandle, msgVisibilityCurrent,
+                                    sqsClient.ChangeMessageVisibilityAsync(_videoQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, msgVisibilityCurrent,
                                         stoppingToken);
                                 }
                             },
@@ -342,11 +342,11 @@ public class Worker(
                         var chunksForBatch = messagesWithChunkInfo.Chunk(10);
                         foreach (var chunk in chunksForBatch)
                         {
-                            await sqsClient.SendMessageBatchAsync(_chunkQueueOptions.Url, [.. chunk], stoppingToken);
+                            await sqsClient.SendMessageBatchAsync(_chunkQueueOptions.Url.ToString(), [.. chunk], stoppingToken);
                         }
                     }
 
-                    await sqsClient.DeleteMessageAsync(_videoQueueOptions.Url, sqsMessage.ReceiptHandle, stoppingToken);
+                    await sqsClient.DeleteMessageAsync(_videoQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, stoppingToken);
                 }
                 catch (OperationCanceledException ex)
                 {
@@ -355,7 +355,7 @@ public class Worker(
                 catch (Exception ex)
                 {
                     await statusSender.SendStatus(videoId, VideoStatus.Rejected, sqsClient, stoppingToken);
-                    await sqsClient.DeleteMessageAsync(_videoQueueOptions.Url, sqsMessage.ReceiptHandle, stoppingToken);
+                    await sqsClient.DeleteMessageAsync(_videoQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, stoppingToken);
                     _logger.Error(ex, "Failed processing video");
                 }
                 finally

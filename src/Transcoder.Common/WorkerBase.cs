@@ -7,9 +7,9 @@ public abstract class WorkerBase(IHostApplicationLifetime applicationLifetime, S
     public override Task StartAsync(CancellationToken cancellationToken)
     {
         // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
-        applicationLifetime.ApplicationStopping.Register(() => logger.Information($"{name} worker is shutting down..."));
+        _ = applicationLifetime.ApplicationStopping.Register(() => logger.Information($"{name} worker is shutting down..."));
         // ReSharper disable once TemplateIsNotCompileTimeConstantProblem
-        applicationLifetime.ApplicationStarted.Register(() => logger.Information($"{name} worker started and listening for messages..."));
+        _ = applicationLifetime.ApplicationStarted.Register(() => logger.Information($"{name} worker started and listening for messages..."));
         return base.StartAsync(cancellationToken);
     }
 

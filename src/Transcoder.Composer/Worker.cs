@@ -38,7 +38,7 @@ public class Worker(
     {
         var request = new ReceiveMessageRequest
         {
-            QueueUrl = _streamQueueOptions.Url,
+            QueueUrl = _streamQueueOptions.Url.ToString(),
             AttributeNames = { MessageSystemAttributeName.ApproximateReceiveCount },
             MaxNumberOfMessages = 1,
             WaitTimeSeconds = _streamQueueOptions.WaitTimeSeconds,
@@ -72,7 +72,7 @@ public class Worker(
                 var visibilityTimeoutTimer = Stopwatch.StartNew();
                 var msgVisibilityCurrent = _streamQueueOptions.VisibilityTimeoutSeconds;
 
-                var sqsMessage = response.Messages.First();
+                var sqsMessage = response.Messages[0];
 
                 var message = JsonSerializer.Deserialize<CollectChunksMessage>(sqsMessage.Body)!;
 
@@ -87,7 +87,7 @@ public class Worker(
                 if (chunks.Count == 0)
                 {
                     _logger.Warning("No chunks found, duplicate message is detected");
-                    await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_streamQueueOptions.Url, sqsMessage.ReceiptHandle),
+                    await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_streamQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle),
                         stoppingToken);
 
                     continue;
@@ -144,14 +144,14 @@ public class Worker(
                             _streamQueueOptions.MaxApproximateReceiveCount)
                         {
                             await statusSender.SendStatus(message.VideoId, VideoStatus.Rejected, sqsClient, stoppingToken);
-                            await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_streamQueueOptions.Url, sqsMessage.ReceiptHandle),
+                            await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_streamQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle),
                                 stoppingToken);
                             joinChunksOperation.Abandon(ex);
                         }
                         else
                         {
                             _logger.Warning(ex, "Probably on of the chunk files is incomplete, returning message to the queue...");
-                            await sqsClient.ChangeMessageVisibilityAsync(_streamQueueOptions.Url, sqsMessage.ReceiptHandle, 0, stoppingToken);
+                            await sqsClient.ChangeMessageVisibilityAsync(_streamQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, 0, stoppingToken);
                             joinChunksOperation.Cancel();
                             continue;
                         }
@@ -168,7 +168,7 @@ public class Worker(
                     {
                         _logger.Information("Elapsed {Elapsed}, increasing visibility timeout...",
                             visibilityTimeoutTimer.Elapsed.TotalSeconds);
-                        await sqsClient.ChangeMessageVisibilityAsync(_streamQueueOptions.Url,
+                        await sqsClient.ChangeMessageVisibilityAsync(_streamQueueOptions.Url.ToString(),
                             sqsMessage.ReceiptHandle,
                             _streamQueueOptions.VisibilityTimeoutSeconds, stoppingToken);
                     }
@@ -199,8 +199,6 @@ public class Worker(
                     Width = probeTranscoded.PrimaryVideoStream!.Width,
                     Height = probeTranscoded.PrimaryVideoStream.Height,
                     BitRate = probeTranscoded.PrimaryVideoStream.BitRate,
-
-                    //TODO: нужно формировать из кодеков видео и аудио
                     Codec = File.Exists(audioFilePath) ? "avc1.42001f,mp4a.40.2" : "avc1.42001f"
                 };
 
@@ -219,7 +217,7 @@ public class Worker(
                                 .WithFastStart())
                             .NotifyOnProgress(_ =>
                             {
-                                var totalSecondsElapsed = visibilityTimeoutTimer.Elapsed.TotalSeconds;
+                                var totalSecondsElapsed = (int)visibilityTimeoutTimer.Elapsed.TotalSeconds;
 
                                 if (totalSecondsElapsed + 20 > msgVisibilityCurrent
                                     && totalSecondsElapsed % 10 == 0)
@@ -229,7 +227,7 @@ public class Worker(
 
                                     _logger.Information("Elapsed {Elapsed}, increasing visibility timeout for media container...",
                                         totalSecondsElapsed);
-                                    sqsClient.ChangeMessageVisibilityAsync(_streamQueueOptions.Url, sqsMessage.ReceiptHandle, msgVisibilityCurrent, stoppingToken);
+                                    sqsClient.ChangeMessageVisibilityAsync(_streamQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, msgVisibilityCurrent, stoppingToken);
                                 }
                             })
                             .ProcessAsynchronously();
@@ -239,7 +237,7 @@ public class Worker(
                     catch (FFMpegException ex)
                     {
                         await statusSender.SendStatus(message.VideoId, VideoStatus.Rejected, sqsClient, stoppingToken);
-                        await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_streamQueueOptions.Url, sqsMessage.ReceiptHandle),
+                        await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_streamQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle),
                             stoppingToken);
                         createMediaContainerOperation.Abandon(ex);
                         continue;
@@ -263,7 +261,7 @@ public class Worker(
                         Path.Combine(storageOptions.Value.Path, "finished", message.VideoId.ToString()),
                         (sender, args) =>
                         {
-                            var totalSecondsElapsed = visibilityTimeoutTimer.Elapsed.TotalSeconds;
+                            var totalSecondsElapsed = (int)visibilityTimeoutTimer.Elapsed.TotalSeconds;
 
                             if (totalSecondsElapsed + 20 > msgVisibilityCurrent
                                 && totalSecondsElapsed % 10 == 0)
@@ -273,7 +271,7 @@ public class Worker(
 
                                 _logger.Information("Elapsed {Elapsed}, increasing visibility timeout for upload...",
                                     totalSecondsElapsed);
-                                sqsClient.ChangeMessageVisibilityAsync(_streamQueueOptions.Url, sqsMessage.ReceiptHandle, msgVisibilityCurrent,
+                                sqsClient.ChangeMessageVisibilityAsync(_streamQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, msgVisibilityCurrent,
                                     stoppingToken);
                             }
                         },
@@ -284,13 +282,11 @@ public class Worker(
 
                 _logger.Information("Finished processing");
 
-                await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_streamQueueOptions.Url, sqsMessage.ReceiptHandle),
+                await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_streamQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle),
                     stoppingToken);
                 await statusSender.SendStatus(message.VideoId, VideoStatus.Done, sqsClient, stoppingToken, segmentsCount);
 
-                //TODO: проверить что перезапишется master playlist
-
-                await chunksRepository.DeleteChunks((await chunksRepository.GetAllAsync(message.VideoId, stoppingToken)).ToArray(), stoppingToken);
+                await chunksRepository.DeleteChunks([.. await chunksRepository.GetAllAsync(message.VideoId, stoppingToken)], stoppingToken);
             }
 
             catch (OperationCanceledException ex)

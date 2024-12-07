@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Transcoder.Common.MessageModels;
 
 using MongoDB.Bson;
@@ -20,7 +21,7 @@ public record Video
     public string Playlist { get; set; } = string.Empty;
 
     [BsonElement("fileUrl")]
-    public string FileUrl { get; set; } = string.Empty;
+    public Uri? FileUrl { get; set; }
 
     [BsonElement("format")]
     public string Format { get; set; } = string.Empty;
@@ -39,7 +40,7 @@ public record Video
     public int Progress { get; set; }
 
     [BsonElement("resolutionProgress")]
-    public List<ResolutionProgress> ResolutionProgress { get; set; } = [];
+    public Collection<ResolutionProgress> ResolutionProgress { get; } = [];
 }
 
 public record ResolutionProgress()

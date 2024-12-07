@@ -9,11 +9,10 @@ using Transcoder.Common.Storage;
 using Serilog.Context;
 using Serilog.Events;
 using SerilogTimings.Extensions;
-using Extensions = Amazon.SQS.Model.Extensions;
 
 namespace Transcoder.Worker;
 
-public class Worker(
+internal sealed class Worker(
     IHostApplicationLifetime applicationLifetime,
     Serilog.ILogger logger,
     IAmazonSQS sqsClient,
@@ -29,7 +28,7 @@ public class Worker(
     {
         var request = new ReceiveMessageRequest
         {
-            QueueUrl = _chunkQueueOptions.Url,
+            QueueUrl = _chunkQueueOptions.Url.ToString(),
             AttributeNames = { MessageSystemAttributeName.ApproximateReceiveCount },
             MaxNumberOfMessages = 1,
             WaitTimeSeconds = _chunkQueueOptions.WaitTimeSeconds,
@@ -54,7 +53,7 @@ public class Worker(
                         continue;
                     }
 
-                    sqsMessage = response.Messages.First();
+                    sqsMessage = response.Messages[0];
                     op.Complete("Chunk", sqsMessage.Body);
                 }
 
@@ -109,7 +108,7 @@ public class Worker(
                             Key = key,
                             Height = resolution.Height
                         }),
-                        QueueUrl = _processedQueueOptions.Url,
+                        QueueUrl = _processedQueueOptions.Url.ToString(),
                         MessageGroupId = chunk.VideoId.ToString()
                     };
 
@@ -132,7 +131,7 @@ public class Worker(
                             await args
                                 .NotifyOnProgress(_ =>
                                 {
-                                    var totalSecondsElapsed = visibilityTimeoutTimer.Elapsed.TotalSeconds;
+                                    var totalSecondsElapsed = (int)visibilityTimeoutTimer.Elapsed.TotalSeconds;
 
                                     if (totalSecondsElapsed + 20 > msgVisibilityCurrent
                                         && totalSecondsElapsed % 10 == 0)
@@ -143,7 +142,7 @@ public class Worker(
                                         _logger.Information("Elapsed {Elapsed}, increasing visibility timeout for chunk #{ChunkNumber}...",
                                             totalSecondsElapsed,
                                             chunk.ChunkNumber);
-                                        sqsClient.ChangeMessageVisibilityAsync(_chunkQueueOptions.Url, sqsMessage.ReceiptHandle, msgVisibilityCurrent, stoppingToken);
+                                        sqsClient.ChangeMessageVisibilityAsync(_chunkQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, msgVisibilityCurrent, stoppingToken);
                                     }
                                 })
                                 .ProcessAsynchronously();
@@ -156,20 +155,16 @@ public class Worker(
                             if (sqsMessage.GetMaxApproximateReceiveCount() >=
                                 _chunkQueueOptions.MaxApproximateReceiveCount)
                             {
-                                //последняя попытка провалена - посылаем composer Cancellation Message, чтобы остановить обработку
                                 _logger.Error(ex, "Attempt {Attempt} Failed to transcode chunk #{ChunkNumber}", sqsMessage.GetMaxApproximateReceiveCount(),
                                     chunk.ChunkNumber);
 
                                 sendProcessedChunkRequest.SetIsCancellationRequestMessage();
-                                transcodeOperation.Abandon(Extensions.ChunkStateMessageAttributeName, "Cancelled");
-
-                                //TODO: keep the status of taskId and ignore all subsequent chunks activities
+                                transcodeOperation.Abandon(AmazonSqsExtensions.ChunkStateMessageAttributeName, "Cancelled");
                             }
                             else
                             {
-                                //ничего не делаем - пусть оно обработается еще раз другим worker
                                 _logger.Warning(ex, "chunk #{ChunkNumber} failed, returning message to the queue...", chunk.ChunkNumber);
-                                await sqsClient.ChangeMessageVisibilityAsync(_chunkQueueOptions.Url, sqsMessage.ReceiptHandle, 0, stoppingToken);
+                                await sqsClient.ChangeMessageVisibilityAsync(_chunkQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle, 0, stoppingToken);
                                 transcodeOperation.Cancel();
                                 continue;
                             }
@@ -183,8 +178,7 @@ public class Worker(
 
                     _logger.Information("Finished chunk #{ChunkNumber} processing", chunk.ChunkNumber);
 
-                    //TODO: use new token to prevent cancellation
-                    await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_chunkQueueOptions.Url, sqsMessage.ReceiptHandle),
+                    await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_chunkQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle),
                         stoppingToken);
 
                     await sqsClient.SendMessageAsync(sendProcessedChunkRequest, stoppingToken);
@@ -194,7 +188,9 @@ public class Worker(
             {
                 _logger.Warning(ex, "Scale down event occured");
             }
+#pragma warning disable CA1031
             catch (Exception ex)
+#pragma warning restore CA1031
             {
                 _logger.Fatal(ex, "transcoder-worker failed");
             }

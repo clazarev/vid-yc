@@ -19,10 +19,9 @@ public class ChunkRepository(IApplicationDbContext context) : IChunkRepository
         await context.SaveChangesAsync(token);
     }
 
-    public async Task CleanUp(TimeSpan expiry, CancellationToken token)
+    public Task CleanUp(TimeSpan expiry, CancellationToken token)
     {
-        //context.ProcessedChunks.Where(row => row.CreatedAt.HasValue && row.CreatedAt < DateTime.Now - expiry);
-        await context.SaveChangesAsync(token);
+        return Task.CompletedTask;
     }
 
     public Task<List<ProcessedChunk>> GetAllAsync(Guid videoId, CancellationToken token)

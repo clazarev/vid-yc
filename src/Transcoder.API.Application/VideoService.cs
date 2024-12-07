@@ -36,20 +36,18 @@ public class VideoService(
         var video = new Video
         {
             Id = videoId,
-            FileUrl = sourcePath,
+            FileUrl = new Uri(sourcePath),
             Playlist = playlist,
             Progress = 1 //initial progress as we started something
         };
 
-        // вызвать ffprobe по filepath
-        //var link = "https://s3.yandexcloud.net/ycdevmvscpcom0/4cf93c71-d5bc-4d89-97fb-08d6fa30536e/files/e029f48a-dc6a-49d1-8abd-7f2830dc3278.jpg?AWSAccessKeyId=YCAJEP_DdI0nVlHCT8RmKxaup&Expires=1721919648&Signature=4RofZ4eFxAvXOjxis7t1%2BscWU5k%3D";
         IMediaAnalysis? probe = null;
 
         using (var op = _logger.OperationAt(LogEventLevel.Information, LogEventLevel.Error).Begin("Initial FFProbe.AnalyseAsync"))
         {
             try
             {
-                probe = await FFProbe.AnalyseAsync(new Uri(video.FileUrl), null, cancellationToken);
+                probe = await FFProbe.AnalyseAsync(video.FileUrl, null, cancellationToken);
 
                 FFMpegHelper.ConversionSizeExceptionCheck(probe);
 
@@ -86,8 +84,6 @@ public class VideoService(
         }
         else
         {
-
-
             video.Format = probe.Format.FormatName;
             video.Duration = (long)probe.Duration.TotalSeconds;
             video.Status = VideoStatus.Added;
@@ -103,7 +99,7 @@ public class VideoService(
             var sendMessageRequest = new SendMessageRequest
             {
                 MessageBody = JsonSerializer.Serialize(videoMes),
-                QueueUrl = _videoQueueOptions.Url
+                QueueUrl = _videoQueueOptions.Url.ToString()
             };
             _logger.Information("Send video to chunker");
 

@@ -2,7 +2,7 @@ namespace Transcoder.Common.MessageModels;
 
 public record VideoMessage
 {
-    public Guid VideoId { get; set; }
-    public string? FileUrl { get; set; }
-    public string? Playlist { get; set; }
+    public required Guid VideoId { get; set; }
+    public required Uri FileUrl { get; set; }
+    public required string Playlist { get; set; }
 }

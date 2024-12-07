@@ -27,7 +27,7 @@ public class QueueOptions
     /// </summary>
     public const string ProcessedChunksQueue = nameof(ProcessedChunksQueue);
 
-    public string? Url { get; init; }
+    public required Uri Url { get; init; }
 
     public int WaitTimeSeconds { get; set; }
 

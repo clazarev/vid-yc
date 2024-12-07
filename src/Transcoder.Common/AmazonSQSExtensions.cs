@@ -1,7 +1,7 @@
 ﻿// ReSharper disable once CheckNamespace
 namespace Amazon.SQS.Model;
 
-public static class Extensions
+public static class AmazonSqsExtensions
 {
     public const string ChunkStateMessageAttributeName = "State";
 
@@ -27,7 +27,7 @@ public static class Extensions
 
     public static void SetIsContinueRequestMessage(this SendMessageRequest messageRequest)
     {
-        messageRequest.MessageAttributes.TryAdd(ChunkStateMessageAttributeName, new MessageAttributeValue
+        _ = messageRequest.MessageAttributes.TryAdd(ChunkStateMessageAttributeName, new MessageAttributeValue
         {
             StringValue = "Continue",
             DataType = "String"
@@ -36,12 +36,9 @@ public static class Extensions
 
     public static int GetMaxApproximateReceiveCount(this Message message)
     {
-        if (message.Attributes.TryGetValue(MessageSystemAttributeName.ApproximateReceiveCount, out var attribute)
-           )
-        {
-            return int.TryParse(attribute, out var value) ? value : 0;
-        }
-
-        return 0;
+        return message.Attributes.TryGetValue(MessageSystemAttributeName.ApproximateReceiveCount, out var attribute) &&
+            int.TryParse(attribute, out var value)
+            ? value
+            : 0;
     }
 }

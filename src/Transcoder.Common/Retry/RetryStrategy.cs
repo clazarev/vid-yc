@@ -1,18 +1,12 @@
 ﻿namespace Transcoder.Common.Retry;
 
-public class RetryStrategy(int maxRetries, TimeSpan interval)
+public class RetryStrategy
 {
-    private int MaxRetries { get; set; } = maxRetries;
+    public int MaxRetries { get; set; }
 
-    private TimeSpan Interval { get; set; } = interval;
-
-    public int getMaxRetries()
+    public TimeSpan TimeInterval
     {
-        return MaxRetries;
-    }
-
-    public TimeSpan getTimeInterval()
-    {
-        return Interval;
+        get;
+        set;
     }
 }

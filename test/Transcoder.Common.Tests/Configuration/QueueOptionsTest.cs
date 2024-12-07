@@ -11,9 +11,9 @@ public class QueueOptionsTest
     {
         var options = new QueueOptions
         {
-            Url = "Url"
+            Url = new Uri("https://google.com")
         };
 
-        Assert.Equal("Url", options.Url);
+        Assert.Equal("ttps://google.com", options.Url.ToString());
     }
 }

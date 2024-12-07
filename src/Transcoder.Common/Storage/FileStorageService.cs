@@ -42,13 +42,11 @@ public class FileStorageService(
             Key = key
         };
 
-        using (var response = await client.GetObjectAsync(objectRequest, token))
+        using var response = await client.GetObjectAsync(objectRequest, token);
+        if (response.HttpStatusCode == HttpStatusCode.OK)
         {
-            if (response.HttpStatusCode == HttpStatusCode.OK)
-            {
-                await using var fs = new FileStream(path, FileMode.OpenOrCreate);
-                await response.ResponseStream.CopyToAsync(fs, token);
-            }
+            await using var fs = new FileStream(path, FileMode.OpenOrCreate);
+            await response.ResponseStream.CopyToAsync(fs, token);
         }
     }
 
@@ -77,7 +75,9 @@ public class FileStorageService(
 
     private async Task UploadDirectoryToBucket(string path, string bucket, EventHandler<UploadDirectoryProgressArgs> onProgress, CancellationToken token)
     {
+#pragma warning disable CA2000
         var directoryTransferUtility = new TransferUtility(client);
+#pragma warning restore CA2000
         var request = new TransferUtilityUploadDirectoryRequest
         {
             BucketName = bucket,

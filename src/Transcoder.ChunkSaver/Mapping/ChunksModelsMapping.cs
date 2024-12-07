@@ -4,7 +4,8 @@ using Transcoder.Common.MessageModels;
 
 namespace Transcoder.ChunkSaver.Mapping;
 
-public class ChunksModelsMapping : Profile
+// ReSharper disable once UnusedType.Global
+internal class ChunksModelsMapping : Profile
 {
     public ChunksModelsMapping()
     {
