@@ -20,7 +20,7 @@ using SerilogTimings.Extensions;
 
 namespace Transcoder.Composer;
 
-public class Worker(
+internal sealed class Worker(
     IHostApplicationLifetime applicationLifetime,
     Serilog.ILogger logger,
     IServiceProvider services,
@@ -185,13 +185,6 @@ public class Worker(
                     }
                 }
 
-                /*// выгрузить затранскоженный видос
-                _logger.Information("Upload file {Height}.mp4 ...", message.Height);
-
-                await fileStorageService.UploadFile(finishFilePath, $"{message.VideoId}/finished/{fileName}", stoppingToken);
-                */
-
-                // создать новый профиль по videoId
                 var probeTranscoded = await FFProbe.AnalyseAsync(finishFilePath, cancellationToken: stoppingToken);
                 var profile = new VideoProfile
                 {

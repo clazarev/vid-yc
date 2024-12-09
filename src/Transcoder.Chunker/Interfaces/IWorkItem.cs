@@ -1,6 +1,6 @@
 ﻿namespace Transcoder.Chunker.Interfaces;
 
-public interface IWorkItem
+internal interface IWorkItem
 {
     Guid VideoId { get; }
 }

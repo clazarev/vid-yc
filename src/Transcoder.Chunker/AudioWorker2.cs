@@ -7,7 +7,8 @@ using Transcoder.Chunker.Models;
 
 namespace Transcoder.Chunker;
 
-public class AudioWorker2(
+// ReSharper disable once UnusedType.Global
+internal sealed class AudioWorker2(
     IHostApplicationLifetime applicationLifetime,
     IBackgroundTaskQueue<AudioWorkItem> taskQueue,
     Serilog.ILogger logger,

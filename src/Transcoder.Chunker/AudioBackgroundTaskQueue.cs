@@ -4,7 +4,7 @@ using Transcoder.Chunker.Models;
 
 namespace Transcoder.Chunker;
 
-public class AudioBackgroundTaskQueue: IBackgroundTaskQueue<AudioWorkItem>
+internal sealed class AudioBackgroundTaskQueue: IBackgroundTaskQueue<AudioWorkItem>
 {
     private readonly Channel<AudioWorkItem> _queue;
 

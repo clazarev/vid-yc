@@ -14,6 +14,7 @@ using SerilogTimings.Extensions;
 
 namespace Transcoder.ChunkSaver;
 
+#pragma warning disable CA1812
 internal sealed class Worker(
     IHostApplicationLifetime applicationLifetime,
     Serilog.ILogger logger,
@@ -23,6 +24,8 @@ internal sealed class Worker(
     IOptionsMonitor<QueueOptions> queueOptions,
     StatusSender statusSender) : WorkerBase(applicationLifetime, logger, "transcoder-chunk-saver")
 {
+#pragma warning restore CA1812
+
     private readonly QueueOptions _processedQueueOptions = queueOptions.Get(QueueOptions.ProcessedChunksQueue);
     private readonly QueueOptions _streamQueueOptions = queueOptions.Get(QueueOptions.StreamQueue);
     private readonly Serilog.ILogger _logger = logger;

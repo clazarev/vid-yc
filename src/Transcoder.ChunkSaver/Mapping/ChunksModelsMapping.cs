@@ -5,10 +5,12 @@ using Transcoder.Common.MessageModels;
 namespace Transcoder.ChunkSaver.Mapping;
 
 // ReSharper disable once UnusedType.Global
-internal class ChunksModelsMapping : Profile
+#pragma warning disable CA1812
+internal sealed class ChunksModelsMapping : Profile
 {
     public ChunksModelsMapping()
     {
         CreateMap<ProcessedChunkMessage, ProcessedChunk>();
     }
 }
+#pragma warning restore CA1812

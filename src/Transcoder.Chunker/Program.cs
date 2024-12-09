@@ -52,4 +52,6 @@ builder.Services
     .AddHostedService<WorkerHealthCheckBackgroundService>();
 
 var host = builder.Build();
+#pragma warning disable S6966
 host.Run();
+#pragma warning restore S6966

@@ -1,7 +1,7 @@
 namespace Transcoder.Chunker;
-public static class ResolutionCalculator
+internal static class ResolutionCalculator
 {
-    private static readonly Dictionary<(int x, int y), (int Width, int Height)> _ratioToSD = new()
+    private static readonly Dictionary<(int x, int y), (int Width, int Height)> s_ratioToSd = new()
     {
         {(4, 3), (640, 480)},
         {(3, 4),(480, 640)},
@@ -11,7 +11,7 @@ public static class ResolutionCalculator
         {(10, 16),(400, 640)},
     };
 
-    private static readonly Dictionary<(int x, int y), (int Width, int Height)> _ratioToHD = new()
+    private static readonly Dictionary<(int x, int y), (int Width, int Height)> s_ratioToHd = new()
     {
         {(4, 3), (1280, 960)},
         {(3, 4),(960, 1280)},
@@ -21,7 +21,7 @@ public static class ResolutionCalculator
         {(10, 16),(800, 1280)},
     };
 
-    private static readonly Dictionary<(int x, int y), (int Width, int Height)> _ratioToFullHD = new()
+    private static readonly Dictionary<(int x, int y), (int Width, int Height)> s_ratioToFullHd = new()
     {
         {(4, 3), (1920, 1440)},
         {(3, 4),(1440, 1920)},
@@ -31,7 +31,7 @@ public static class ResolutionCalculator
         {(10, 16),(1200, 1920)},
     };
 
-    private static readonly Dictionary<(int x, int y), (int Width, int Height)> _rationToUHD = new()
+    private static readonly Dictionary<(int x, int y), (int Width, int Height)> s_rationToUhd = new()
     {
         {(4, 3), (3840, 2880)},
         {(3, 4),(2880, 3840)},
@@ -46,16 +46,16 @@ public static class ResolutionCalculator
     public const int FullHdResolution = 1920 * 1080;
     public static (int Width, int Height) ChooseBaseSize(int x, int y, bool useSdResolution)
     {
-        return useSdResolution ? _ratioToSD.GetValueOrDefault((x, y)) : _ratioToHD.GetValueOrDefault((x, y));
+        return useSdResolution ? s_ratioToSd.GetValueOrDefault((x, y)) : s_ratioToHd.GetValueOrDefault((x, y));
     }
     public static List<(int Width, int Height)> CalculateSizes(int x, int y)
     {
         List<(int Width, int Height)> res =
         [
-            _ratioToSD.GetValueOrDefault((x, y)),
-            _ratioToHD.GetValueOrDefault((x, y)),
-            _ratioToFullHD.GetValueOrDefault((x, y)),
-            _rationToUHD.GetValueOrDefault((x, y)),
+            s_ratioToSd.GetValueOrDefault((x, y)),
+            s_ratioToHd.GetValueOrDefault((x, y)),
+            s_ratioToFullHd.GetValueOrDefault((x, y)),
+            s_rationToUhd.GetValueOrDefault((x, y)),
         ];
         return res;
     }

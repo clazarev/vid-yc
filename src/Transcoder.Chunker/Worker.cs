@@ -1,30 +1,25 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Text.Json;
-
 using Amazon.SQS;
 using Amazon.SQS.Model;
-
 using FFMpegCore;
 using FFMpegCore.Exceptions;
 using FFMpegCore.Helpers;
-
 using Transcoder.Common;
 using Transcoder.Common.Configuration;
 using Transcoder.Common.MessageModels;
 using Transcoder.Common.Storage;
-
 using Microsoft.Extensions.Options;
-
 using Serilog.Context;
 using Serilog.Events;
-
 using SerilogTimings;
 using SerilogTimings.Extensions;
 
 namespace Transcoder.Chunker;
 
-public class Worker(
+internal class Worker(
     IHostApplicationLifetime applicationLifetime,
 #if !SKIP_AUDIO
     IBackgroundTaskQueue<AudioWorkItem> taskQueue,
@@ -74,15 +69,13 @@ public class Worker(
             var visibilityTimeoutTimer = Stopwatch.StartNew();
             var msgVisibilityCurrent = _videoQueueOptions.VisibilityTimeoutSeconds;
 
-            var videoId = Guid.Empty;
-
             foreach (var sqsMessage in response.Messages)
             {
+                var videoToProcess = JsonSerializer.Deserialize<VideoMessage>(sqsMessage.Body)!;
+                var videoId = videoToProcess.VideoId;
+
                 try
                 {
-                    var videoToProcess = JsonSerializer.Deserialize<VideoMessage>(sqsMessage.Body)!;
-
-                    videoId = videoToProcess.VideoId;
                     var fileUrl = new Uri(videoToProcess.FileUrl.ToString());
                     var workingDir = Path.Combine(storageOptions.Value.Path, videoId.ToString(), videoId.ToString()); //лишний videoId для копирования папки
 
@@ -90,8 +83,10 @@ public class Worker(
                     var fileName = Path.GetFileName(fileUrl.LocalPath);
                     var fileExt = Path.GetExtension(fileUrl.LocalPath);
                     var filePath = Path.Combine(workingDir,
-                        fileName); // изменять fileName, чтобы не было конфликта папок, если будут выбраны одинаковые файлы для транскодинга
-                    string? audioKey = null;
+                        fileName);
+#if !SKIP_AUDIO
+string? audioKey = null;
+#endif
 
                     using var _ = LogContext.PushProperty("VideoId", videoId);
 
@@ -99,9 +94,9 @@ public class Worker(
                     using (_logger.OperationAt(LogEventLevel.Information, LogEventLevel.Error).Time("Download video from {@FileUrl}", fileUrl))
                     {
                         using var client = new HttpClient();
-                        using var s = client.GetStreamAsync(fileUrl, stoppingToken);
+                        await using var s = await client.GetStreamAsync(fileUrl, stoppingToken);
                         await using var fs = new FileStream(filePath, FileMode.OpenOrCreate);
-                        await s.Result.CopyToAsync(fs, stoppingToken);
+                        await s.CopyToAsync(fs, stoppingToken);
                     }
 
                     var probe = await FFProbe.AnalyseAsync(filePath, cancellationToken: stoppingToken);
@@ -111,8 +106,6 @@ public class Worker(
                     {
                         Directory.CreateDirectory(pathImg);
                     }
-
-                    // выбираем разрешения для чанков
 
                     List<Resolution> allSizes = [];
                     var origWidth = probe.PrimaryVideoStream!.Width;
@@ -124,11 +117,11 @@ public class Worker(
                     {
                         origAspectRatio = ResolutionCalculator.CalculateAspectRatio(origWidth, origHeight);
                     }
+
                     var baseSize = ResolutionCalculator.ChooseBaseSize(
                         origAspectRatio.Width, origAspectRatio.Height, _processingOptions.UseSdBaseVideoSize);
                     var baseResolution = _processingOptions.UseSdBaseVideoSize ? ResolutionCalculator.SdResolution : ResolutionCalculator.HdResolution;
 
-                    // размер видео даже меньше
                     if (baseSize == default || origResolution < baseResolution)
                     {
                         baseSize = (origWidth, origHeight);
@@ -154,11 +147,10 @@ public class Worker(
                         allSizes.RemoveAll(size => size.Height != baseSize.Height);
                     }
 
-                    ArgumentOutOfRangeException.ThrowIfZero(allSizes.Count, $"{nameof(allSizes)} is empty");
+                    ArgumentOutOfRangeException.ThrowIfZero(allSizes.Count);
 
                     FFMpegHelper.ConversionSizeExceptionCheck(baseSize.Width, baseSize.Height);
 
-                    // делаем обложку
                     _logger.Information("Generating cover...");
                     using (var operationCover = Operation.Begin("Generate cover"))
                     {
@@ -175,7 +167,6 @@ public class Worker(
                         }
                     }
 
-                    // отрезаем аудио
                     if (probe.AudioStreams.Count != 0)
                     {
 #if !SKIP_AUDIO
@@ -188,25 +179,11 @@ public class Worker(
                             audioKey
                         ));
 #endif
-
-                        // TODO:
-                        // .NotifyOnProgress(_ =>
-                        // {
-                        //     var totalSecondsElapsed = visibilityTimeoutTimer.Elapsed.TotalSeconds;
-                        //
-                        //     if (totalSecondsElapsed + 12 > _videoQueueOptions.VisibilityTimeoutSeconds
-                        //         && totalSecondsElapsed % 10 == 0)
-                        //     {
-                        //         _logger.Information("Elapsed {Elapsed}, increasing visibility timeout...",
-                        //             totalSecondsElapsed);
-                        //         sqsClient.ChangeMessageVisibilityAsync(_videoQueueOptions.Url, sqsMessage.ReceiptHandle, 10, stoppingToken);
-                        //     }
                     }
 
                     var listOfChunks = new List<ChunksInfoMessage>();
                     int i;
 
-                    // делим видео на чанки. длительность чанка зависит от разрешения, чтобы чанк мог обработаться
                     int scaler = origResolution / ResolutionCalculator.FullHdResolution;
                     scaler = scaler switch
                     {
@@ -222,11 +199,11 @@ public class Worker(
                     // делим видео на длительность
                     using (var operationChunks = _logger.BeginOperation("Chunk video"))
                     {
-                        for (i = 0; probe.Duration.TotalSeconds - i * step > 0; i++)
+                        for (i = 0; probe.Duration.TotalSeconds - (i * step) > 0; i++)
                         {
                             var chunkName = $"chunk_{i}{fileExt}";
                             var startTime = TimeSpan.FromSeconds(i * step);
-                            var endTime = probe.Duration.TotalSeconds - i * step > step ? TimeSpan.FromSeconds((i + 1) * step) : probe.Duration;
+                            var endTime = probe.Duration.TotalSeconds - (i * step) > step ? TimeSpan.FromSeconds((i + 1) * step) : probe.Duration;
                             try
                             {
                                 var input = filePath;
@@ -238,18 +215,18 @@ public class Worker(
 
                                 await FFMpegArguments
                                     .FromFileInput(input,
-                                        addArguments: (Action<FFMpegArgumentOptions>)(options =>
+                                        addArguments: options =>
                                             options
                                                 .Seek(startTime)
-                                                .EndSeek(endTime)))
+                                                .EndSeek(endTime))
                                     .OutputToFile(output,
-                                        addArguments: (Action<FFMpegArgumentOptions>)(options =>
+                                        addArguments: options =>
                                         {
 #if !SKIP_AUDIO
                                             options.CopyChannel(Channel.Video);
 #endif
                                             options.CopyChannel();
-                                        }))
+                                        })
                                     .NotifyOnProgress(_ =>
                                     {
                                         var totalSecondsElapsed = (int)visibilityTimeoutTimer.Elapsed.TotalSeconds;
@@ -277,7 +254,7 @@ public class Worker(
                                     ChunkName = chunkName,
                                     VideoId = videoId,
                                     Playlist = videoToProcess.Playlist,
-                                    Resolutions = allSizes,
+                                    Resolutions = new ReadOnlyCollection<Resolution>(allSizes),
                                     Duration = endTime.Subtract(startTime).TotalSeconds,
                                     Key = $"{videoId}/{chunkName}"
                                 });
@@ -328,16 +305,12 @@ public class Worker(
                         await statusSender.SendResolutionBatchStatus(
                             videoId,
                             VideoStatus.Chopped,
-                            allSizes,
+                            new ReadOnlyCollection<Resolution>(allSizes),
                             sqsClient,
                             stoppingToken);
 
                         var messagesWithChunkInfo = listOfChunks.Select(chunk =>
-                            new SendMessageBatchRequestEntry
-                            {
-                                Id = chunk.ChunkName,
-                                MessageBody = JsonSerializer.Serialize(chunk)
-                            }
+                            new SendMessageBatchRequestEntry { Id = chunk.ChunkName, MessageBody = JsonSerializer.Serialize(chunk) }
                         ).ToList();
                         var chunksForBatch = messagesWithChunkInfo.Chunk(10);
                         foreach (var chunk in chunksForBatch)

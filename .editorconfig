@@ -134,6 +134,9 @@ dotnet_diagnostic.CA1805.severity = warning
 # CA1810: Do not initialize unnecessarily
 dotnet_diagnostic.CA1810.severity = warning
 
+# CA1812: never instantiated
+dotnet_diagnostic.CA1812.severity = none
+
 # CA1821: Remove empty Finalizers
 dotnet_diagnostic.CA1821.severity = warning
 
@@ -215,7 +218,7 @@ dotnet_diagnostic.CA1847.severity = warning
 dotnet_diagnostic.CA1848.severity = none
 
 # CA1852: Seal internal types
-dotnet_diagnostic.CA1852.severity = warning
+dotnet_diagnostic.CA1852.severity = none
 
 # CA1854: Prefer the IDictionary.TryGetValue(TKey, out TValue) method
 dotnet_diagnostic.CA1854.severity = warning

@@ -65,4 +65,6 @@ var app = builder.Build();
 app.MapGrpcService<VideoService>();
 app.MapGrpcHealthChecksService();
 
+#pragma warning disable S6966
 app.Run();
+#pragma warning restore S6966

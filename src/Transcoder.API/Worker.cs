@@ -18,7 +18,7 @@ using SerilogTimings.Extensions;
 
 namespace Transcoder.API;
 
-public class Worker(
+internal class Worker(
     IHostApplicationLifetime applicationLifetime,
     Serilog.ILogger logger,
     IServiceProvider services,
@@ -34,7 +34,7 @@ public class Worker(
 
         var request = new ReceiveMessageRequest
         {
-            QueueUrl = _processingStatusQueueOptions.Url,
+            QueueUrl = _processingStatusQueueOptions.Url.ToString(),
             AttributeNames = { MessageSystemAttributeName.ApproximateReceiveCount },
             MaxNumberOfMessages = 1,
             WaitTimeSeconds = _processingStatusQueueOptions.WaitTimeSeconds,
@@ -74,14 +74,12 @@ public class Worker(
                     if (video == null)
                     {
                         //что-то странное, поэтому удаляем сообщение
-                        await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_processingStatusQueueOptions.Url, sqsMessage.ReceiptHandle),
+                        await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_processingStatusQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle),
                             stoppingToken);
                         op.Abandon("Status", "NotFound");
                         continue;
                     }
 
-                    //TODO: обработать другие статусы
-                    // Added, Done только 1 раз у видео
                     switch (message.Status)
                     {
                         case VideoStatus.Processing:
@@ -127,6 +125,9 @@ public class Worker(
                                 video.Status = VideoStatus.Rejected;
                             }
                             break;
+                        case VideoStatus.Added:
+                        case VideoStatus.Verified:
+                        case VideoStatus.Gluing:
                         default:
                             break;
                     }
@@ -134,7 +135,7 @@ public class Worker(
                     video.UpdateDate = DateTime.UtcNow;
                     await dbContext.SaveChangesAsync(stoppingToken);
 
-                    await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_processingStatusQueueOptions.Url, sqsMessage.ReceiptHandle),
+                    await sqsClient.DeleteMessageAsync(new DeleteMessageRequest(_processingStatusQueueOptions.Url.ToString(), sqsMessage.ReceiptHandle),
                         stoppingToken);
 
                     op.EnrichWith("Progress", video.ResolutionProgress);

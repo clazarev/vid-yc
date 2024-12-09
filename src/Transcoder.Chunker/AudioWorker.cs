@@ -14,7 +14,7 @@ using Transcoder.Chunker.Models;
 
 namespace Transcoder.Chunker;
 
-public class AudioWorker(
+internal class AudioWorker(
     IHostApplicationLifetime applicationLifetime,
     IBackgroundTaskQueue<AudioWorkItem> taskQueue,
     Serilog.ILogger logger,
